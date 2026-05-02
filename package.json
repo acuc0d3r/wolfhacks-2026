@@ -6,9 +6,20 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "export": "next build",
+    "build:web": "npm run export",
+    "cap:init": "npx cap init ConditionX com.acuc0d3r.conditionx --web-dir=out",
+    "cap:add-android": "npx cap add android",
+    "cap:copy": "npx cap copy",
+    "cap:sync": "npx cap sync android",
+    "cap:open-android": "npx cap open android",
+    "cap:build": "npm run build:web && npx cap copy android && npx cap sync android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/cli": "^8.3.1",
+    "@capacitor/core": "^8.3.1",
     "@google/generative-ai": "^0.24.1",
     "next": "16.2.4",
     "qrcode.react": "^4.2.0",

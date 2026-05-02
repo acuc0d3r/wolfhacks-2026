@@ -1,7 +1,7 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+// GROQ settings: provide a GROQ_API_KEY in environment, and optionally GROQ_API_URL
+const GROQ_API_URL = process.env.GROQ_API_URL || "https://api.groq.ai/v1/models/groq-1:predict";
 
 const SYSTEM_PROMPT = `You are a medical triage assistant during a 2030 Brampton healthcare emergency involving "Condition X".
 Analyze the patient's symptoms and respond with ONLY valid JSON — no markdown fences, no explanation outside the JSON object.
@@ -121,17 +121,40 @@ export async function POST(req: NextRequest) {
   const healthContext = buildHealthContext(healthProfile);
 
   try {
-    const model = genAI.getGenerativeModel(
-      { model: "gemini-2.0-flash-lite", systemInstruction: SYSTEM_PROMPT + langInstruction },
-      { apiVersion: "v1beta" }
-    );
-    const chat = model.startChat();
-    const result = await chat.sendMessage(symptoms.trim() + healthContext);
-    const raw = result.response.text().trim();
-    const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-    return NextResponse.json(JSON.parse(text));
+    const prompt = SYSTEM_PROMPT + langInstruction + "\n\nPatient input:\n" + symptoms.trim() + healthContext;
+
+    const resp = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY ?? ""}`,
+      },
+      body: JSON.stringify({ prompt }),
+    });
+
+    const data = await resp.json().catch(() => null);
+
+    let raw = "";
+    if (!data) raw = "";
+    else if (typeof data === "string") raw = data;
+    else if (data.output && Array.isArray(data.output) && data.output[0]) {
+      const c = data.output[0].content;
+      if (typeof c === "string") raw = c;
+      else if (Array.isArray(c)) raw = c.map((x: any) => (typeof x === "string" ? x : x.text || "")).join("");
+    } else if (data.choices && data.choices[0] && (data.choices[0].text || data.choices[0].message?.content)) {
+      raw = data.choices[0].text || data.choices[0].message?.content || "";
+    } else if (data.text) raw = data.text;
+    else raw = JSON.stringify(data);
+
+    const text = (raw || "").toString().trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+    try {
+      return NextResponse.json(JSON.parse(text));
+    } catch (e) {
+      console.warn("Groq response parse failed, falling back to demo:", e instanceof Error ? e.message : e);
+      return NextResponse.json(buildDemoResponse(symptoms.trim()));
+    }
   } catch (err) {
-    console.warn("Gemini unavailable, using demo fallback:", err instanceof Error ? err.message : err);
+    console.warn("Groq unavailable, using demo fallback:", err instanceof Error ? err.message : err);
     return NextResponse.json(buildDemoResponse(symptoms.trim()));
   }
 }
