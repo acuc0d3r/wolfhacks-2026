@@ -17,6 +17,8 @@ const CLINICS = [
     operator: "William Osler Health System",
     notes: "Full emergency services. Avoid unless EMERGENCY urgency.",
     open: "24/7",
+    lat: 43.7178,
+    lng: -79.7104,
   },
   {
     name: "Peel Memorial Centre — Urgent Care",
@@ -29,6 +31,8 @@ const CLINICS = [
     operator: "William Osler Health System",
     notes: "Best option for URGENT cases. No appointment needed.",
     open: "24/7",
+    lat: 43.6892,
+    lng: -79.7560,
   },
   {
     name: "Bramalea Medical Walk-in",
@@ -41,6 +45,8 @@ const CLINICS = [
     operator: "Independent",
     notes: "Family medicine and walk-in. Good for MONITOR cases with worsening symptoms.",
     open: "8 AM – 8 PM",
+    lat: 43.7410,
+    lng: -79.6860,
   },
   {
     name: "Shoppers Drug Mart Clinic — Bramalea City Centre",
@@ -53,6 +59,8 @@ const CLINICS = [
     operator: "Shoppers Drug Mart",
     notes: "Minor illness, prescription renewal, Condition X testing.",
     open: "9 AM – 9 PM",
+    lat: 43.7375,
+    lng: -79.6900,
   },
   {
     name: "Punjabi Community Health Services",
@@ -65,6 +73,8 @@ const CLINICS = [
     operator: "PCHS",
     notes: "Multilingual staff. South Asian community focus. Mental health and primary care.",
     open: "9 AM – 5 PM",
+    lat: 43.6845,
+    lng: -79.7650,
   },
   {
     name: "Heart Lake Medical Centre",
@@ -77,6 +87,8 @@ const CLINICS = [
     operator: "Independent",
     notes: "Walk-in and family medicine. North Brampton residents.",
     open: "8 AM – 7 PM",
+    lat: 43.7170,
+    lng: -79.7400,
   },
   {
     name: "Algoma University — Portable Clinic (Demo)",
@@ -89,6 +101,8 @@ const CLINICS = [
     operator: "Algoma University (Demo)",
     notes: "Portable clinic demo — for demonstration only; not a real care site.",
     open: "10 AM – 4 PM",
+    lat: 46.4930,
+    lng: -84.3450,
   },
 ];
 
@@ -105,6 +119,19 @@ const TYPE_BADGE: Record<CareType, string> = {
   urgent: "bg-orange-500/10 text-orange-400 border-orange-500/20",
   walkin: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
 };
+
+// Brampton City Hall (used as distance origin for sorting)
+const CITY_HALL = { lat: 43.6833, lng: -79.7609 };
+
+function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return 6371 * c; // kilometers
+}
 
 function WaitBar({ pct }: { pct: number }) {
   const color = pct > 80 ? "bg-red-500" : pct > 60 ? "bg-orange-500" : "bg-green-500";
@@ -127,9 +154,19 @@ export default function ClinicsPage() {
   const shownSorted = useMemo(() => {
     const arr = shown.slice();
     if (sortBy === 'capacity') {
-      arr.sort((a, b) => (b.capacity ?? 0) - (a.capacity ?? 0));
+      // capacity: low -> high
+      arr.sort((a, b) => (a.capacity ?? 0) - (b.capacity ?? 0));
     } else if (sortBy === 'location') {
-      arr.sort((a, b) => (a.address || '').localeCompare(b.address || ''));
+      // sort by geographic distance to Brampton City Hall (closest first)
+      arr.sort((a, b) => {
+        const da = (typeof a.lat === "number" && typeof a.lng === "number")
+          ? haversineDistanceKm(CITY_HALL.lat, CITY_HALL.lng, a.lat, a.lng)
+          : Number.POSITIVE_INFINITY;
+        const db = (typeof b.lat === "number" && typeof b.lng === "number")
+          ? haversineDistanceKm(CITY_HALL.lat, CITY_HALL.lng, b.lat, b.lng)
+          : Number.POSITIVE_INFINITY;
+        return da - db;
+      });
     }
     return arr;
   }, [shown, sortBy]);
@@ -174,8 +211,8 @@ export default function ClinicsPage() {
               className="bg-slate-800 text-slate-300 text-sm border border-slate-600 rounded-full px-3 py-1.5"
             >
               <option value="best">Best match</option>
-              <option value="capacity">Capacity (high → low)</option>
-              <option value="location">Location (A → Z)</option>
+              <option value="capacity">Capacity (low → high)</option>
+              <option value="location">Location (distance to City Hall)</option>
             </select>
           </div>
         </div>
