@@ -5,6 +5,7 @@ import { QRCodeSVG } from "qrcode.react";
 
 const KEY_STORAGE = "conditionx_rsa_keys";
 const LOCK_AFTER_SECONDS = 120;
+const QR_TTL_SECONDS = 15 * 60; // 15 minutes
 
 // ── Crypto helpers ──────────────────────────────────────────────────────────
 
@@ -63,18 +64,29 @@ async function decryptSummary(b64: string, privateKey: CryptoKey): Promise<strin
 
 interface Props { doctorSummary: string }
 
-type State = "loading" | "locked" | "unlocking" | "unlocked";
+type State = "loading" | "locked" | "generating" | "unlocking" | "unlocked";
 
 export default function BioLocker({ doctorSummary }: Props) {
   const [uiState, setUiState] = useState<State>("loading");
-  const [encrypted, setEncrypted] = useState("");
+  const [qrToken, setQrToken] = useState("");
+  const [qrExpiry, setQrExpiry] = useState<number | null>(null);
   const [decrypted, setDecrypted] = useState("");
   const [countdown, setCountdown] = useState(LOCK_AFTER_SECONDS);
+  const [qrCountdown, setQrCountdown] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [qrCopied, setQrCopied] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
   const keysRef = useRef<{ publicKey: CryptoKey; privateKey: CryptoKey } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const qrTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Load or generate key pair, then encrypt the summary
+  function formatSeconds(s: number) {
+    const mm = Math.floor(s / 60);
+    const ss = s % 60;
+    return `${mm}:${String(ss).padStart(2, "0")}`;
+  }
+
+  // Load or generate key pair
   useEffect(() => {
     (async () => {
       try {
@@ -89,8 +101,6 @@ export default function BioLocker({ doctorSummary }: Props) {
           localStorage.setItem(KEY_STORAGE, JSON.stringify(exported));
         }
 
-        const enc = await encryptSummary(doctorSummary, keys.publicKey);
-        setEncrypted(enc);
         setUiState("locked");
       } catch (e) {
         console.error("BioLocker init failed:", e);
@@ -99,7 +109,7 @@ export default function BioLocker({ doctorSummary }: Props) {
     })();
   }, [doctorSummary]);
 
-  // Auto-lock countdown
+  // Auto-lock countdown for unlocked view
   useEffect(() => {
     if (uiState !== "unlocked") return;
     setCountdown(LOCK_AFTER_SECONDS);
@@ -113,15 +123,74 @@ export default function BioLocker({ doctorSummary }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uiState]);
 
+  // QR token countdown
+  useEffect(() => {
+    if (!qrExpiry) return;
+    // initialize
+    setQrCountdown(Math.max(0, Math.ceil((qrExpiry - Date.now()) / 1000)));
+    if (qrTimerRef.current) clearInterval(qrTimerRef.current);
+    qrTimerRef.current = setInterval(() => {
+      setQrCountdown((c) => {
+        if (c <= 1) {
+          // expire
+          setQrToken("");
+          setQrExpiry(null);
+          if (qrTimerRef.current) clearInterval(qrTimerRef.current);
+          qrTimerRef.current = null;
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => { if (qrTimerRef.current) clearInterval(qrTimerRef.current); };
+  }, [qrExpiry]);
+
   async function unlock() {
-    if (!keysRef.current || !encrypted) return;
-    setUiState("unlocking");
+    // Not used — unlocking requires a QR token in this flow.
+    return;
+  }
+
+  async function generateQr() {
+    if (!keysRef.current) return;
+    setUiState("generating");
     try {
-      const plain = await decryptSummary(encrypted, keysRef.current.privateKey);
-      setDecrypted(plain);
-      setUiState("unlocked");
-    } catch {
+      const expiry = Date.now() + QR_TTL_SECONDS * 1000;
+      const payload = JSON.stringify({ exp: expiry, summary: doctorSummary });
+      const token = await encryptSummary(payload, keysRef.current.publicKey);
+      setQrToken(token);
+      setQrExpiry(expiry);
       setUiState("locked");
+      setUnlockError(null);
+    } catch (e) {
+      console.error("QR generation failed:", e);
+      setUiState("locked");
+    }
+  }
+
+  async function unlockWithQr(token?: string) {
+    const t = token ?? qrToken;
+    if (!keysRef.current || !t) return;
+    setUiState("unlocking");
+    setUnlockError(null);
+    try {
+      const plain = await decryptSummary(t, keysRef.current.privateKey);
+      let parsed: any = null;
+      try { parsed = JSON.parse(plain); } catch {}
+      if (parsed && parsed.exp) {
+        if (Date.now() > parsed.exp) {
+          setUiState("locked");
+          setUnlockError("QR token has expired");
+          return;
+        }
+        setDecrypted(parsed.summary ?? "");
+      } else {
+        setDecrypted(plain);
+      }
+      setUiState("unlocked");
+    } catch (e) {
+      console.error(e);
+      setUiState("locked");
+      setUnlockError("Failed to decrypt token");
     }
   }
 
@@ -156,24 +225,48 @@ export default function BioLocker({ doctorSummary }: Props) {
       {uiState === "locked" && (
         <>
           <p className="text-slate-400 text-sm text-center">
-            Your medical summary is encrypted with your personal RSA key.
-            Only you can unlock it to show your doctor.
+            The Bio-Locker represents a physical locker for medical packages. Generate a time-limited QR code (15 minutes)
+            to allow someone (or a locker terminal) to access your package.
           </p>
 
-          {/* Encrypted QR preview */}
-          {encrypted && (
-            <div className="bg-slate-700 p-3 rounded-xl opacity-60 select-none" title="Encrypted — unlock to reveal">
-              <QRCodeSVG value={encrypted.slice(0, 800)} size={140} bgColor="#334155" fgColor="#94a3b8" level="L" />
-            </div>
-          )}
-          <p className="text-slate-500 text-xs text-center">⬆ Encrypted cipher — unreadable until unlocked</p>
+          <div className="w-full flex flex-col items-center gap-3">
+            {!qrToken ? (
+              <button
+                onClick={generateQr}
+                className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold py-3 rounded-xl transition-colors"
+              >
+                🔑 Generate Access QR (15m)
+              </button>
+            ) : (
+              <>
+                <div className="bg-slate-700 p-3 rounded-xl select-none">
+                  <QRCodeSVG value={qrToken} size={140} bgColor="#334155" fgColor="#94a3b8" level="L" />
+                </div>
+                <p className="text-slate-500 text-xs">QR expires in {formatSeconds(qrCountdown)}</p>
 
-          <button
-            onClick={unlock}
-            className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold py-3 rounded-xl transition-colors"
-          >
-            🔓 Unlock for Doctor
-          </button>
+                <div className="flex gap-2 w-full">
+                  <button
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(qrToken);
+                      setQrCopied(true);
+                      setTimeout(() => setQrCopied(false), 2000);
+                    }}
+                    className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium py-2 rounded-xl transition-colors"
+                  >
+                    {qrCopied ? "Copied!" : "Copy QR"}
+                  </button>
+                  <button
+                    onClick={() => unlockWithQr(qrToken)}
+                    className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold py-2 rounded-xl"
+                  >
+                    🔓 Use QR to Unlock (simulate)
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {unlockError && <p className="text-orange-400 text-sm mt-2">{unlockError}</p>}
         </>
       )}
 
