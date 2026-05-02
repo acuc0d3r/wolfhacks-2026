@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import BreathingExercise from "@/components/BreathingExercise";
 import MoodTracker from "@/components/MoodTracker";
 import TranslateButton from "@/components/TranslateButton";
+import BioLocker from "@/components/BioLocker";
 
 const CRISIS_RESOURCES = [
   {
@@ -87,8 +88,59 @@ const DEFAULT_TIPS = [
   "Go outside briefly if safe and permitted — natural light regulates mood",
 ];
 
+const PORTABLE_CLINIC = {
+  name: "Algoma University — Portable Clinic (Demo)",
+  address: "1 University Ave W, Sault Ste. Marie, ON (fictional)",
+  hours: "Mon–Fri 10:00–16:00",
+  phone: "705-555-0199",
+  note: "This is a fictional demo clinic for app demonstration purposes.",
+};
+
+const MOOD_STRATEGIES: Record<number, string[]> = {
+  1: [
+    "If you're in immediate danger call emergency services right away.",
+    "Contact a 24/7 crisis line (e.g., Crisis Services Canada: 1-833-456-4566).",
+    "Grounding: name five things you can see, four you can touch, three you can hear.",
+    "If possible, reach out to a trusted person and let them know you need support.",
+  ],
+  2: [
+    "Try a short breathing exercise (see Guided Breathing above).",
+    "Send a quick message to a friend or family member — you don't need to explain everything.",
+    "Break tasks into very small steps and do one immediately (make tea, open a window).",
+  ],
+  3: [
+    "Keep a simple routine and do one thing that usually helps you feel steady.",
+    "Short movement: 10 minutes of walking or stretching can improve mood.",
+    "Plan a small social contact (a quick call or message to someone you trust).",
+  ],
+  4: [
+    "Continue routines that work and try a gratitude practice (one thing you're glad for).",
+    "Offer support to someone else — helping can boost your mood.",
+    "Keep up with light exercise and sleep hygiene to sustain gains.",
+  ],
+  5: [
+    "Maintain healthy routines and check in with supports regularly.",
+    "Reflect on what helps you stay well and try to schedule it into your week.",
+    "Consider volunteering or peer-support roles if you're able — it reinforces wellbeing.",
+  ],
+};
+
 export default function MentalHealthPage() {
   const [tips, setTips] = useState(DEFAULT_TIPS);
+  const [todayMood, setTodayMood] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("conditionx_mood");
+      if (!raw) return;
+      const entries = JSON.parse(raw);
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const todayEntry = entries.find((e: any) => e.date === todayKey);
+      if (todayEntry) setTodayMood(todayEntry.value);
+    } catch {
+      // ignore corrupt storage
+    }
+  }, []);
 
   return (
     <main className="min-h-screen bg-slate-900 text-white flex flex-col">
@@ -122,6 +174,38 @@ export default function MentalHealthPage() {
           <BreathingExercise />
         </div>
 
+        {/* Portable clinic demo + Bio-Locker */}
+        <div className="bg-slate-800 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-lg">Portable Clinic — Algoma University (Demo)</h2>
+            <span className="text-xs text-slate-400">Demo</span>
+          </div>
+          <p className="text-slate-400 text-sm mb-2">{PORTABLE_CLINIC.address} • {PORTABLE_CLINIC.hours}</p>
+          <p className="text-slate-400 text-sm mb-4">{PORTABLE_CLINIC.note}</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-slate-300 font-medium mb-1">Services</p>
+              <ul className="text-slate-400 text-sm list-disc ml-4">
+                <li>Walk-in triage and basic clinical support</li>
+                <li>Mental health check-ins and referrals</li>
+                <li>Bio-Locker demo for secure summaries</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-slate-300 font-medium mb-1">Contact</p>
+              <a href={`tel:${PORTABLE_CLINIC.phone.replace(/[^0-9]/g, "")}`} className="text-cyan-400 font-mono">{PORTABLE_CLINIC.phone}</a>
+
+              <div className="mt-4">
+                <BioLocker doctorSummary={
+                  "Algoma University Portable Clinic (Demo) — Sample summary:\nServices: walk-in triage, mental health check-in. This is a demo; no real personal data."
+                } />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Isolation tips */}
         <div className="bg-slate-800 rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
@@ -139,6 +223,27 @@ export default function MentalHealthPage() {
               </li>
             ))}
           </ul>
+        </div>
+
+        {/* Recommended strategies */}
+        <div className="bg-slate-800 rounded-2xl p-6">
+          <h2 className="font-semibold text-lg mb-1">Recommended strategies</h2>
+          <p className="text-slate-400 text-sm mb-3">Practical strategies based on your check-in today.</p>
+          {todayMood ? (
+            <div>
+              <p className="text-slate-200 font-medium mb-2">Based on your check-in: {['','Really struggling','Not great','Okay','Pretty good','Doing well'][todayMood]}</p>
+              <ul className="space-y-2">
+                {MOOD_STRATEGIES[todayMood].map((s, idx) => (
+                  <li key={idx} className="text-slate-300 text-sm flex gap-3">
+                    <span className="text-cyan-400 font-bold">{idx + 1}.</span>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-slate-400 text-sm">No check-in found for today — try the mood tracker above to get tailored suggestions.</p>
+          )}
         </div>
 
         {/* Crisis resources */}
@@ -195,6 +300,23 @@ export default function MentalHealthPage() {
               </a>
             ))}
           </div>
+        </div>
+
+        {/* Terms & Privacy (Demo) */}
+        <div className="bg-slate-800 rounded-2xl p-6">
+          <h2 className="font-semibold text-lg mb-2">Terms & Privacy (Demo)</h2>
+          <p className="text-slate-400 text-sm mb-2">
+            This demo app stores sensitive summaries locally and encrypts them on-device (RSA-2048 + AES-256).
+            Private keys are kept on your device and are not transmitted to our servers. In this demo, the Bio-Locker
+            ensures that encrypted summaries cannot be decrypted by the app owners or third parties unless you
+            explicitly unlock and share them.
+          </p>
+          <p className="text-slate-400 text-sm mb-2">
+            Some on-device features in this demo are described as using local AI models. That means processing
+            happens on your device rather than being sent to a remote server. For production deployments,
+            independently verify encryption, storage, and model privacy guarantees before relying on them.
+          </p>
+          <p className="text-slate-400 text-sm">This app is not a substitute for professional medical care. If you are in danger, call emergency services.</p>
         </div>
 
         {/* Equity note */}

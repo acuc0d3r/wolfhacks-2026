@@ -60,7 +60,7 @@ export default function MoodTracker() {
             }`}
           >
             {mood.emoji}
-            <span className="text-xs text-slate-400 mt-1 hidden sm:block">{mood.label.split(" ")[0]}</span>
+            <span className="text-xs text-slate-400 mt-1 hidden sm:block">{mood.label}</span>
           </button>
         ))}
       </div>

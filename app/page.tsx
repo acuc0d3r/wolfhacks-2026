@@ -7,19 +7,31 @@ import TranslateButton from "@/components/TranslateButton";
 const DEFAULT_TEXTS = [
   // [0] hero description
   "Healthcare resources are strained. Get instant AI-powered triage — describe your symptoms by voice or text and receive a clear action plan. Your doctor gets a scan-ready QR summary so they can skip the intake questions.",
-  // [1-3] feature descriptions
+  // [1-3] feature titles
+  "Voice or Text",
+  "Instant Triage",
+  "QR for Your Doctor",
+  // [4-6] feature descriptions
   "Speak your symptoms or type them — no forms to fill out",
   "AI tells you exactly what to do and how urgently",
   "Show the QR at the clinic — no repeated intake questions",
-  // [4] equity paragraph
+  // [7] equity section title
+  "Built for all of Brampton",
+  // [8] equity paragraph
   "Brampton is one of Canada's most diverse cities. This tool is designed to serve everyone equally — newcomers, seniors, youth, and residents who may face barriers to traditional healthcare access. Describe your symptoms in any language and receive guidance back in that language.",
-  // [5-7] equity card descriptions
+  // [9-11] equity card titles
+  "No data stored",
+  "Multilingual",
+  "Free, always",
+  // [12-14] equity card descriptions
   "Your symptoms are never saved or shared. Privacy is a right, not a feature.",
   "Type or speak in English, Hindi, Punjabi, French, Tagalog, or any other language.",
   "No insurance, no OHIP card, no registration required to use this tool.",
-  // [8-9] button labels
+  // [15-16] button labels
   "Check My Symptoms",
   "Mental Health Support",
+  // [17] h1 prefix
+  "Brampton is facing",
 ];
 
 export default function Home() {
@@ -42,7 +54,7 @@ export default function Home() {
           Health Emergency Active
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold leading-tight mb-4 max-w-2xl">
-          Brampton is facing{" "}
+          {texts[17]}{" "}
           <span className="text-cyan-400">Condition X</span>
         </h1>
         <p className="text-slate-300 text-lg max-w-xl mb-10 leading-relaxed">
@@ -50,17 +62,19 @@ export default function Home() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
-          <Link
-            href="/triage"
-            className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold py-4 px-6 rounded-xl text-center transition-colors"
-          >
-            {texts[8]}
+          <Link href="/triage" className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold py-4 px-6 rounded-xl text-center transition-colors">
+            {texts[15]}
           </Link>
-          <Link
-            href="/mental-health"
-            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 px-6 rounded-xl text-center transition-colors"
-          >
-            {texts[9]}
+          <Link href="/mental-health" className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 px-6 rounded-xl text-center transition-colors">
+            {texts[16]}
+          </Link>
+        </div>
+        <div className="flex gap-3 mt-2">
+          <Link href="/outbreak" className="flex-1 border border-orange-500/40 hover:bg-orange-500/10 text-orange-400 text-sm font-medium py-2.5 px-4 rounded-xl text-center transition-colors">
+            🦠 Outbreak Status
+          </Link>
+          <Link href="/clinics" className="flex-1 border border-slate-600 hover:bg-slate-800 text-slate-300 text-sm font-medium py-2.5 px-4 rounded-xl text-center transition-colors">
+            🏥 Find a Clinic
           </Link>
         </div>
       </section>
@@ -70,18 +84,18 @@ export default function Home() {
         <div className="max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
           <div>
             <div className="text-3xl mb-2">🎙️</div>
-            <h3 className="font-semibold mb-1">Voice or Text</h3>
-            <p className="text-slate-400 text-sm">{texts[1]}</p>
+            <h3 className="font-semibold mb-1">{texts[1]}</h3>
+            <p className="text-slate-400 text-sm">{texts[4]}</p>
           </div>
           <div>
             <div className="text-3xl mb-2">⚡</div>
-            <h3 className="font-semibold mb-1">Instant Triage</h3>
-            <p className="text-slate-400 text-sm">{texts[2]}</p>
+            <h3 className="font-semibold mb-1">{texts[2]}</h3>
+            <p className="text-slate-400 text-sm">{texts[5]}</p>
           </div>
           <div>
             <div className="text-3xl mb-2">📱</div>
-            <h3 className="font-semibold mb-1">QR for Your Doctor</h3>
-            <p className="text-slate-400 text-sm">{texts[3]}</p>
+            <h3 className="font-semibold mb-1">{texts[3]}</h3>
+            <p className="text-slate-400 text-sm">{texts[6]}</p>
           </div>
         </div>
       </section>
@@ -91,21 +105,21 @@ export default function Home() {
         <div className="max-w-3xl mx-auto">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-lg">🤝</span>
-            <h2 className="font-bold text-lg">Built for all of Brampton</h2>
+            <h2 className="font-bold text-lg">{texts[7]}</h2>
           </div>
-          <p className="text-slate-300 text-sm leading-relaxed mb-5">{texts[4]}</p>
+          <p className="text-slate-300 text-sm leading-relaxed mb-5">{texts[8]}</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
             <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
-              <p className="font-semibold text-cyan-400 mb-1">No data stored</p>
-              <p className="text-slate-400">{texts[5]}</p>
+              <p className="font-semibold text-cyan-400 mb-1">{texts[9]}</p>
+              <p className="text-slate-400">{texts[12]}</p>
             </div>
             <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
-              <p className="font-semibold text-cyan-400 mb-1">Multilingual</p>
-              <p className="text-slate-400">{texts[6]}</p>
+              <p className="font-semibold text-cyan-400 mb-1">{texts[10]}</p>
+              <p className="text-slate-400">{texts[13]}</p>
             </div>
             <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
-              <p className="font-semibold text-cyan-400 mb-1">Free, always</p>
-              <p className="text-slate-400">{texts[7]}</p>
+              <p className="font-semibold text-cyan-400 mb-1">{texts[11]}</p>
+              <p className="text-slate-400">{texts[14]}</p>
             </div>
           </div>
         </div>

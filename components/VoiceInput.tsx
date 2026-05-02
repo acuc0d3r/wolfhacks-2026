@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Props {
   onTranscript: (text: string) => void;
@@ -11,18 +11,17 @@ type AnyRecognition = any;
 
 export default function VoiceInput({ onTranscript }: Props) {
   const [listening, setListening] = useState(false);
-  const [supported, setSupported] = useState(true);
+  const [supported, setSupported] = useState<boolean | null>(null);
   const recognitionRef = useRef<AnyRecognition>(null);
+  const callbackRef = useRef(onTranscript);
+
+  // Keep callback ref current without restarting the effect
+  useEffect(() => { callbackRef.current = onTranscript; });
 
   useEffect(() => {
-    const SR =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SR) {
-      setSupported(false);
-      return;
-    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { setSupported(false); return; }
 
     const recognition = new SR();
     recognition.continuous = false;
@@ -30,18 +29,17 @@ export default function VoiceInput({ onTranscript }: Props) {
     recognition.lang = "en-CA";
 
     recognition.onresult = (e: { results: { [0]: { [0]: { transcript: string } } } }) => {
-      const transcript = e.results[0][0].transcript;
-      onTranscript(transcript);
+      callbackRef.current(e.results[0][0].transcript);
       setListening(false);
     };
-
     recognition.onerror = () => setListening(false);
     recognition.onend = () => setListening(false);
 
     recognitionRef.current = recognition;
-  }, [onTranscript]);
+    setSupported(true);
+  }, []); // runs once on mount
 
-  function toggle() {
+  const toggle = useCallback(() => {
     if (!recognitionRef.current) return;
     if (listening) {
       recognitionRef.current.stop();
@@ -49,14 +47,22 @@ export default function VoiceInput({ onTranscript }: Props) {
       recognitionRef.current.start();
       setListening(true);
     }
-  }
+  }, [listening]);
 
-  if (!supported) return null;
+  // null = not yet checked (server / first paint) — render button to avoid layout shift
+  if (supported === false) {
+    return (
+      <span className="text-slate-500 text-xs px-2">
+        Voice not supported in this browser
+      </span>
+    );
+  }
 
   return (
     <button
       type="button"
       onClick={toggle}
+      disabled={supported === null}
       title={listening ? "Stop recording" : "Speak your symptoms"}
       className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
         listening
